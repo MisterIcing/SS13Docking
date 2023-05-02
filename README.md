@@ -1,0 +1,25 @@
+# Basic Information
+- All dockerfiles should be self sufficient in terms of dependencies and files
+- To update any files in the image, like maps, have them in the same directory as the Dockerfile
+	- Files placed under `/app/Yogstation-master/`
+	- Same structure as the Yogstation repo
+- Mountable directories
+	- `/app/Yogstation-master/data`
+	- `/app/Yogstation-master/config`
+- Logging
+	- A log file is created under `/app`
+	- All DreamDaemon outputs are appended to it
+		- Good Luck finding the right date if done multiple times
+	- Also ignore the missing `log_write` as it should be out of my control
+---
+- ## Dockerfile
+	- Exposes `1337`
+		- Any modification will require DreamDaemon's port to change too
+- ## Dockerfile.ngrok
+	- Exposing is done by ngrok
+	- Needs `build-arg` of valid ngrok key
+		- auth=[key]
+---
+- ## ip.py
+	- This is just for reference
+	- The code is already in Dockerfile.ngrok

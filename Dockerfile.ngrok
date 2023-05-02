@@ -1,0 +1,63 @@
+FROM ubuntu:latest
+
+RUN apt-get update && apt-get install -y \
+    wget \
+    unzip \
+    libcurl4-openssl-dev \
+    libssl-dev \
+    lib32gcc-s1 \
+    lib32stdc++6 \
+    lib32z1 \
+    python3 \
+    curl \
+	pip
+
+RUN pip install youtube-dl
+RUN pip install requests
+RUN pip install bs4
+
+RUN mkdir /app
+WORKDIR /app
+
+RUN wget https://www.byond.com/download/build/514/514.1589_byond_linux.zip
+RUN unzip 514.1589_byond_linux.zip -d /usr/local
+RUN rm 514.1589_byond_linux.zip
+
+RUN wget https://github.com/yogstation13/Yogstation/archive/refs/heads/master.zip
+RUN unzip master.zip -d /app
+RUN rm master.zip
+
+COPY . /app/Yogstation-master/
+
+RUN LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/byond/bin /usr/local/byond/bin/DreamMaker -max_errors 0 /app/Yogstation-master/yogstation.dme
+
+RUN echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/byond/bin /usr/local/byond/bin/DreamDaemon /app/Yogstation-master/yogstation.dmb -trusted -verbose 2>log" > run.sh && chmod +x run.sh
+
+ARG auth=
+RUN apt-get update \
+    && wget https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-linux-amd64.zip \
+    && unzip ngrok-stable-linux-amd64.zip \
+	&& rm ngrok-stable-linux-amd64.zip \
+    && ./ngrok authtoken ${auth} 
+
+RUN echo "import requests" > pubip.py \
+    && echo "from bs4 import BeautifulSoup" >> pubip.py \
+	&& echo "response = requests.get('http://localhost:4040/api/tunnels')" >> pubip.py \
+	&& echo "soup = BeautifulSoup(response.content, 'html.parser')" >> pubip.py \
+	&& echo "indc = soup.text.find('public_url')" >> pubip.py \
+	&& echo "url = soup.text[indc+13:indc+39]" >> pubip.py \
+	&& echo "url = url.replace('tcp:','byond:')" >> pubip.py \
+	&& echo "with open('PublicURL.txt', 'w+') as out:" >> pubip.py \
+	&& echo "    out.write(url)" >> pubip.py \
+	&& echo "print()" >> pubip.py \
+	&& echo "print('Public URL: ' + url)" >> pubip.py \
+	&& echo "print()" >> pubip.py
+
+RUN echo "#!/bin/bash"  > dock.sh \
+    && echo "./ngrok tcp 1337 &"  >> dock.sh\
+    && echo "sleep 5 && python3 pubip.py" >> dock.sh \
+    && echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/byond/bin /usr/local/byond/bin/DreamDaemon /app/Yogstation-master/yogstation.dmb -port 1337 -invisible -trusted -verbose 2>&1 | tee -a log" >> dock.sh \
+    && chmod +x ./dock.sh
+
+VOLUME [ "/app/Yogstation-master/data", "/app/Yogstation-master/config"]
+ENTRYPOINT [ "./dock.sh" ]
